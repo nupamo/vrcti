@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-[#0A0E14] text-white font-sans;
+  background: radial-gradient(circle at 50% -20%, #1a2a44 0%, #0A0E14 70%);
+  min-height: 100vh;
+}
+
+.neon-border {
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3), inset 0 0 5px rgba(0, 255, 255, 0.2);
+  border: 1px solid rgba(0, 255, 255, 0.4);
+}
+
+.vrc-button {
+  @apply px-6 py-3 rounded-lg font-bold transition-all duration-200 active:scale-95;
+  background: linear-gradient(135deg, #1E90FF 0%, #00FFFF 100%);
+  color: black;
+}
+
+.vrc-button:hover {
+  @apply brightness-110;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+}
+
+.vrc-panel {
+  @apply bg-[#151C26]/80 backdrop-blur-md rounded-2xl p-8 border border-white/10;
+}
