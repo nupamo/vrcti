@@ -23,40 +23,26 @@ export default function App() {
   };
 
   const calculateResult = (finalAnswers: Record<number, number>) => {
-    const getIndicatorScore = (indicators: string[]) => {
-      const filtered = questions.filter(q => indicators.includes(q.indicator));
-      const sum = filtered.reduce((acc, q) => acc + (finalAnswers[q.id] || 3), 0);
-      const avg = sum / filtered.length;
-      
-      if (avg > 3.5) return indicators[0];
-      if (avg < 2.5) return indicators[1] || 'x';
-      return 'x';
-    };
-
-    // S vs C, D vs G, E vs P, F vs T (simplified logic based on indicators)
-    // Map scores to indicators: 4-5 is high (A), 1-2 is low (B), 3 is x
-    const s1 = getIndicatorScore(['S']);
-    const s2 = getIndicatorScore(['D']);
-    const s3 = getIndicatorScore(['E']);
-    const s4 = getIndicatorScore(['T']); // Note: T is 'Technical' in indicators, but we want F vs T
-
-    // Proper logic for the requested indicators
     const getCode = (pos: string, neg: string, score: number) => {
-        if (score > 3.4) return pos;
-        if (score < 2.6) return neg;
-        return 'x';
+      return score >= 3 ? pos : neg;
     };
 
-    const calcIndicator = (key: string) => {
-        const qList = questions.filter(q => q.indicator === key);
-        return qList.reduce((acc, q) => acc + (finalAnswers[q.id] || 3), 0) / qList.length;
+    const getIndicatorAvg = (pos: string, neg: string) => {
+      const posQs = questions.filter(q => q.indicator === pos);
+      const negQs = questions.filter(q => q.indicator === neg);
+      if (posQs.length + negQs.length === 0) return 3;
+
+      const posSum = posQs.reduce((acc, q) => acc + (finalAnswers[q.id] || 3), 0);
+      const negSum = negQs.reduce((acc, q) => acc + (6 - (finalAnswers[q.id] || 3)), 0);
+
+      return (posSum + negSum) / (posQs.length + negQs.length);
     };
 
     const res = [
-        getCode('S', 'C', calcIndicator('S')),
-        getCode('D', 'G', calcIndicator('D')),
-        getCode('E', 'P', calcIndicator('E')),
-        getCode('F', 'T', 6 - calcIndicator('T')) // T high means F low
+      getCode('S', 'C', getIndicatorAvg('S', 'C')),
+      getCode('D', 'G', getIndicatorAvg('D', 'G')),
+      getCode('E', 'P', getIndicatorAvg('E', 'P')),
+      getCode('F', 'T', getIndicatorAvg('F', 'T'))
     ].join('');
 
     setResultCode(res);
@@ -81,7 +67,7 @@ export default function App() {
     <div className="max-w-md mx-auto min-h-screen flex flex-col items-center justify-center p-4">
       <AnimatePresence mode="wait">
         {step === 'start' && (
-          <motion.div 
+          <motion.div
             key="start"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -89,21 +75,21 @@ export default function App() {
             className="vrc-panel text-center w-full"
           >
             <div className="mb-6 inline-block p-3 rounded-full bg-vrc-neon/10 text-vrc-neon">
-                <Monitor size={48} />
+              <Monitor size={48} />
             </div>
             <h1 className="text-4xl font-black mb-2 tracking-tighter text-vrc-neon">VRCTI</h1>
-            <p className="text-gray-400 mb-8">VRChat Type Indicator<br/>당신의 가상 세계 성격 유형은?</p>
+            <p className="text-gray-400 mb-8 font-medium">VRChat Type Indicator<br /><span className="text-xs text-gray-500">당신의 가상 세계 성격 유형은?</span></p>
             <button onClick={() => setStep('test')} className="vrc-button w-full text-lg">테스트 시작하기</button>
-            <div className="mt-8 flex justify-center gap-4 text-xs text-gray-500">
-                <span>#VRChat</span>
-                <span>#VRCTI</span>
-                <span>#성격테스트</span>
+            <div className="mt-8 flex justify-center gap-4 text-[10px] text-gray-600 uppercase tracking-widest">
+              <span>#VRChat</span>
+              <span>#VRCTI</span>
+              <span>#MBTI</span>
             </div>
           </motion.div>
         )}
 
         {step === 'test' && (
-          <motion.div 
+          <motion.div
             key="test"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -111,59 +97,83 @@ export default function App() {
             className="vrc-panel w-full"
           >
             <div className="mb-8">
-              <div className="flex justify-between text-xs text-vrc-neon mb-2 font-mono">
+              <div className="flex justify-between text-[10px] text-vrc-neon mb-2 font-mono tracking-tighter">
                 <span>QUESTION {currentIdx + 1}/{questions.length}</span>
                 <span>{Math.round(((currentIdx + 1) / questions.length) * 100)}%</span>
               </div>
-              <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-                <motion.div 
-                    className="h-full bg-vrc-neon"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${((currentIdx + 1) / questions.length) * 100}%` }}
+              <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-vrc-neon shadow-[0_0_10px_rgba(0,255,255,0.5)]"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${((currentIdx + 1) / questions.length) * 100}%` }}
                 />
               </div>
             </div>
 
-            <h2 className="text-xl font-bold mb-10 min-h-[4rem] leading-relaxed">
+            <h2 className="text-xl font-bold mb-12 min-h-[4rem] leading-relaxed text-center break-keep">
               {questions[currentIdx].text}
             </h2>
 
-            <div className="space-y-3">
-              {[5, 4, 3, 2, 1].map((score) => (
-                <button
-                  key={score}
-                  onClick={() => handleAnswer(score)}
-                  className="w-full p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-vrc-neon/10 hover:border-vrc-neon/30 transition-all text-left flex items-center justify-between group"
-                >
-                  <span className="font-medium">
-                    {score === 5 && "매우 그렇다"}
-                    {score === 4 && "그렇다"}
-                    {score === 3 && "보통이다"}
-                    {score === 2 && "아니다"}
-                    {score === 1 && "전혀 아니다"}
-                  </span>
-                  <div className="w-2 h-2 rounded-full bg-white/20 group-hover:bg-vrc-neon shadow-[0_0_8px_transparent] group-hover:shadow-vrc-neon" />
-                </button>
-              ))}
+            <div className="flex gap-4">
+              <button
+                onClick={() => handleAnswer(5)}
+                className="flex-1 p-8 rounded-3xl border-2 border-vrc-neon/20 bg-vrc-neon/5 hover:bg-vrc-neon/20 hover:border-vrc-neon transition-all group flex flex-col items-center justify-center gap-2"
+              >
+                <div className="text-6xl font-black text-vrc-neon group-hover:scale-110 transition-transform drop-shadow-[0_0_15px_rgba(0,255,255,0.3)]">O</div>
+                <div className="text-xs font-bold text-vrc-neon/60">그렇다</div>
+              </button>
+              <button
+                onClick={() => handleAnswer(1)}
+                className="flex-1 p-8 rounded-3xl border-2 border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/30 transition-all group flex flex-col items-center justify-center gap-2"
+              >
+                <div className="text-6xl font-black text-gray-600 group-hover:text-white group-hover:scale-110 transition-transform">X</div>
+                <div className="text-xs font-bold text-gray-600 group-hover:text-white/60">아니다</div>
+              </button>
             </div>
           </motion.div>
         )}
 
         {step === 'result' && (
-          <motion.div 
+          <motion.div
             key="result"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="vrc-panel w-full text-center"
           >
             <div className="text-vrc-neon font-mono text-sm mb-2">당신의 결과는...</div>
-            <h2 className="text-5xl font-black mb-1 text-white tracking-widest font-mono">
-              {resultCode}
-            </h2>
-            <div className="inline-block px-3 py-1 rounded-full bg-vrc-neon/20 text-vrc-neon text-sm font-bold mb-6">
+            <div className="relative mb-8 mt-4 group">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 100, delay: 0.2 }}
+                className="w-56 h-56 mx-auto rounded-3xl overflow-hidden border-2 border-vrc-neon/30 p-1 bg-gradient-to-br from-vrc-neon/10 to-transparent relative"
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,255,255,0.15)_0%,transparent_70%)] group-hover:opacity-100 opacity-50 transition-opacity" />
+                <img
+                  src={currentResult.avatar}
+                  alt={currentResult.nickname}
+                  className="w-full h-full object-cover rounded-[1.4rem] grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500"
+                />
+              </motion.div>
+              <motion.div
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-vrc-neon text-black text-[10px] font-black px-3 py-1 rounded-full shadow-[0_0_15px_rgba(0,255,255,0.5)] flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <div className="w-1.5 h-1.5 bg-black rounded-full animate-pulse" />
+                TYPE INDICATOR AVATAR
+              </motion.div>
+            </div>
+
+            <div className="inline-block px-4 py-1.5 rounded-full bg-vrc-neon/10 text-vrc-neon text-sm font-bold mb-4 border border-vrc-neon/20 shadow-[0_0_20px_rgba(0,255,255,0.1)]">
               {currentResult.nickname}
             </div>
-            
+
+            <h2 className="text-6xl font-black mb-8 text-white tracking-[0.25em] font-mono drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+              {resultCode}
+            </h2>
+
             <p className="text-gray-300 mb-8 leading-relaxed text-left bg-black/30 p-4 rounded-lg border border-white/5">
               {currentResult.description}
             </p>
@@ -174,20 +184,20 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-6">
-              <button 
+              <button
                 onClick={() => copyToClipboard(`[VRCTI 결과]\n유형: ${resultCode}\n별명: ${currentResult.nickname}\n#VRCTI #VRChat`)}
                 className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 p-3 rounded-lg text-sm border border-white/10 transition-colors"
               >
                 <Copy size={16} /> 디스코드 복사
               </button>
-              <button 
+              <button
                 className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 p-3 rounded-lg text-sm border border-white/10 transition-colors"
               >
                 <Share2 size={16} /> 이미지 저장
               </button>
             </div>
 
-            <button 
+            <button
               onClick={reset}
               className="flex items-center justify-center gap-2 w-full text-gray-500 hover:text-vrc-neon transition-colors text-sm"
             >
@@ -196,7 +206,7 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       <footer className="mt-8 text-[10px] text-gray-600 font-mono flex items-center gap-4">
         <span className="flex items-center gap-1"><Monitor size={10} /> VRCTI v1.0.0</span>
         <span className="flex items-center gap-1"><Github size={10} /> GITHUB</span>
