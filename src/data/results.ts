@@ -111,7 +111,7 @@ export const results: Record<string, ResultInfo> = {
   },
   "GIFP": {
     nickname: "창고가 터져나가는 유행 민감러",
-    description: "부담 없이 다양한 캐릭터를 번갈아 입으며 기분을 전환하는 패션 테러리스트(또는 아이콘)! 친구들과 아바타 쇼핑이나 사진 촬영을 하며 매 순간 새로운 페르소나를 즐깁니다.",
+    description: "부담 없이 다양한 캐릭터를 번갈아 입으며 기분을 전환하는 패션 테러리스트(또는 아이콘)! 친구들과 아바타 쇼핑이나 사진 촬영하며 매 순간 새로운 페르소나를 즐깁니다.",
     avatar: avatarUrls.chocolat,
     avatarStyle: "여러 스타일의 데일리 룩, 귀여운 동물 귀나 꼬리 포인트."
   },

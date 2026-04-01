@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Share2, RotateCcw, Copy, Monitor, ChevronLeft } from 'lucide-react';
+import { RotateCcw, Copy, ChevronLeft, User } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { questions } from './data/questions';
 import { results } from './data/results';
 import { Indicator, indicatorDescriptions } from './data/indicators';
+
 
 export default function App() {
   const [step, setStep] = useState<'start' | 'test' | 'result'>('start');
@@ -132,7 +133,7 @@ export default function App() {
               className="vrc-panel text-center w-full"
             >
               <div className="mb-6 inline-block p-3 rounded-full bg-vrc-neon/10 text-vrc-neon">
-                <Monitor size={48} />
+                <User size={48} />
               </div>
               <h1 className="text-4xl font-black mb-2 tracking-tighter text-vrc-neon">VRCTI</h1>
               <p className="text-gray-400 mb-8 font-medium">VRChat Type Indicator<br /><span className="text-xs text-gray-500">당신의 가상 세계 플레이 성향은?</span></p>
@@ -283,15 +284,25 @@ export default function App() {
                   <div className="mt-auto pt-4 border-t border-white/5">
                     <div className="grid grid-cols-2 gap-3 mb-6">
                       <button
-                        onClick={() => copyToClipboard(`[VRCTI 결과]\n유형: ${resultCode}\n별명: ${currentResult.nickname}\n#VRCTI #VRChat`)}
+                        onClick={() => {
+                          const shareText = `[VRCTI 결과]\n유형: ${resultCode}\n별명: ${currentResult.nickname}\n#VRCTI #VRChat`;
+                          copyToClipboard(shareText);
+                        }}
                         className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 p-3 rounded-lg text-sm border border-white/10 transition-colors"
                       >
-                        <Copy size={16} /> 디스코드 복사
+                        <Copy size={16} /> 텍스트 복사
                       </button>
                       <button
+                        onClick={() => {
+                          const shareText = `[VRCTI 결과]\n유형: ${resultCode}\n별명: ${currentResult.nickname}\n#VRCTI #VRChat`;
+                          window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, '_blank');
+                        }}
                         className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 p-3 rounded-lg text-sm border border-white/10 transition-colors"
                       >
-                        <Share2 size={16} /> 이미지 저장
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                        </svg>
+                        트위터 공유
                       </button>
                     </div>
 
@@ -309,7 +320,7 @@ export default function App() {
         </AnimatePresence>
 
         <footer className="mt-8 text-[10px] text-gray-600 font-mono flex items-center gap-4">
-          <span className="flex items-center gap-1"><Monitor size={10} /> VRCTI v1.0.0</span>
+          <span className="flex items-center gap-1"><User size={10} /> VRCTI v1.0.0</span>
           <a href="https://x.com/nupamo" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-vrc-neon transition-colors">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
