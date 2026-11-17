@@ -1,131 +1,70 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCcw, Copy, ChevronLeft, User, Info, X, Languages } from 'lucide-react';
+import { RotateCcw, Copy, ChevronLeft, User, Info, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { questions } from './data/questions';
 import { results } from './data/results';
 import { Indicator, indicatorDescriptions, Language } from './data/indicators';
+import { uiTranslations } from './data/ui';
+import { calculateResultCode, parseResultCode, shuffle } from './lib/score';
 
-// UI 번역 텍스트 정의
-const uiTranslations: Record<Language, Record<string, string>> = {
-  ko: {
-    start_description: "당신의 가상 세계 플레이 성향은?",
-    start_button: "테스트 시작하기",
-    test_back: "BACK",
-    test_question: "QUESTION",
-    test_yes: "그렇다",
-    test_no: "아니다",
-    result_title: "당신의 가상 세계 플레이 성향",
-    result_booth: "GO TO BOOTH",
-    result_analysis: "세부 분석",
-    result_all_indicators: "전체 지표 보기",
-    result_avatar_style: "추천 아바타 스타일",
-    result_copy_text: "텍스트 복사",
-    result_share_twitter: "트위터 공유",
-    result_restart: "다시 테스트하기",
-    result_copied: "클립보드에 복사되었습니다! ✨",
-    modal_title: "전체 지표 가이드",
-    modal_close: "닫기",
-    pair_1: "탐험 vs 안주",
-    pair_2: "자아 vs 페르소나",
-    pair_3: "현실 vs 몰입",
-    pair_4: "적응 vs 개성",
-    share_text: "[VRCTI 결과]\n결과: {code}, {nickname}\nhttps://vrc.nupa.moe/vrcti?result={code}\n#VRCTI #VRChat"
-  },
-  en: {
-    start_description: "What is your virtual world playstyle?",
-    start_button: "Start Test",
-    test_back: "BACK",
-    test_question: "QUESTION",
-    test_yes: "Yes",
-    test_no: "No",
-    result_title: "Your Virtual World Playstyle",
-    result_booth: "GO TO BOOTH",
-    result_analysis: "Detailed Analysis",
-    result_all_indicators: "View Indicators",
-    result_avatar_style: "Recommended Avatar Style",
-    result_copy_text: "Copy Text",
-    result_share_twitter: "Share on X",
-    result_restart: "Restart Test",
-    result_copied: "Copied to clipboard! ✨",
-    modal_title: "Indicator Guide",
-    modal_close: "Close",
-    pair_1: "Explore vs Settle",
-    pair_2: "Self vs Persona",
-    pair_3: "Reality vs Immersive",
-    pair_4: "Adapt vs Unique",
-    share_text: "[VRCTI Results]\nType: {code}, {nickname}\nhttps://vrc.nupa.moe/vrcti?result={code}\n#VRCTI #VRChat"
-  },
-  ja: {
-    start_description: "あなたの仮想世界でのプレイスタイルは？",
-    start_button: "テストを開始する",
-    test_back: "BACK",
-    test_question: "QUESTION",
-    test_yes: "はい",
-    test_no: "いいえ",
-    result_title: "あなたの仮想世界プレイスタイル",
-    result_booth: "BOOTHへ行く",
-    result_analysis: "詳細分析",
-    result_all_indicators: "全指標を見る",
-    result_avatar_style: "おすすめのアバタースタイル",
-    result_copy_text: "テキストをコピー",
-    result_share_twitter: "Xで共有",
-    result_restart: "もう一度診断する",
-    result_copied: "クリップボードにコピーされました！ ✨",
-    modal_title: "全指標ガイド",
-    modal_close: "閉じる",
-    pair_1: "探索 vs 安住",
-    pair_2: "自分 vs ペルソナ",
-    pair_3: "現実 vs 没入",
-    pair_4: "適応 vs 個性",
-    share_text: "[VRCTI 結果]\nタイプ: {code}、{nickname}型\nhttps://vrc.nupa.moe/vrcti?result={code}\n#VRCTI #VRChat"
-  },
-  zh: {
-    start_description: "你的虚拟世界玩乐倾向是？",
-    start_button: "开始测试",
-    test_back: "返回",
-    test_question: "问题",
-    test_yes: "是",
-    test_no: "否",
-    result_title: "你的虚拟世界玩乐倾向",
-    result_booth: "前往 BOOTH",
-    result_analysis: "详细分析",
-    result_all_indicators: "查看全部指标",
-    result_avatar_style: "推荐虚拟形象风格",
-    result_copy_text: "复制文本",
-    result_share_twitter: "在 X 上分享",
-    result_restart: "重新测试",
-    result_copied: "已复制到剪贴板！✨",
-    modal_title: "指标指南",
-    modal_close: "关闭",
-    pair_1: "探索 vs 安逸",
-    pair_2: "本我 vs 人格",
-    pair_3: "现实 vs 沉浸",
-    pair_4: "适应 vs 个性",
-    share_text: "[VRCTI 测试结果]\n类型: {code}, {nickname}\nhttps://vrc.nupa.moe/vrcti?result={code}\n#VRCTI #VRChat"
+const LANGUAGES: { id: Language; label: string }[] = [
+  { id: 'ko', label: '한국어' },
+  { id: 'en', label: 'English' },
+  { id: 'ja', label: '日本語' },
+  { id: 'zh', label: '中文' },
+];
+
+const LANG_STORAGE_KEY = 'vrcti:lang';
+
+const toLanguage = (value: string | null | undefined): Language | null =>
+  LANGUAGES.find((l) => l.id === value)?.id ?? null;
+
+// 직접 고른 언어가 저장돼 있으면 그것을, 없으면 브라우저 언어를 따른다.
+function detectLanguage(): Language {
+  let saved: string | null = null;
+  try {
+    saved = localStorage.getItem(LANG_STORAGE_KEY);
+  } catch {
+    // 저장소 접근이 막힌 환경(사생활 보호 모드 등)에서는 브라우저 언어만 사용
   }
-};
+  return toLanguage(saved) ?? toLanguage(navigator.language.split('-')[0]) ?? 'ko';
+}
+
+// 결과 화면에 진입하면 공유용 ?result= 파라미터는 주소창에서 지운다.
+function clearResultParam(mode: 'replace' | 'push' = 'replace') {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('result');
+  if (mode === 'push') window.history.pushState({}, '', url);
+  else window.history.replaceState({}, '', url);
+}
 
 export default function App() {
-  const [lang, setLang] = useState<Language>('ko');
-  const [step, setStep] = useState<'start' | 'test' | 'result'>('start');
+  // 공유 링크(?result=CODE)로 들어온 경우 곧바로 결과 화면을 보여준다.
+  const [sharedResult] = useState(() =>
+    parseResultCode(new URLSearchParams(window.location.search).get('result'))
+  );
+  const [lang, setLang] = useState<Language>(detectLanguage);
+  const [step, setStep] = useState<'start' | 'test' | 'result'>(sharedResult ? 'result' : 'start');
+  const [quizQuestions, setQuizQuestions] = useState(() => shuffle(questions));
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [resultCode, setResultCode] = useState('');
+  const [answers, setAnswers] = useState<Record<number, boolean>>({});
+  const [resultCode, setResultCode] = useState<string>(sharedResult ?? '');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const confettiCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [confettiInstance, setConfettiInstance] = useState<any>(null);
-
-  // 언어 감지 및 설정
-  useEffect(() => {
-    const browserLang = navigator.language.split('-')[0];
-    if (browserLang === 'ja') setLang('ja');
-    else if (browserLang === 'en') setLang('en');
-    else if (browserLang === 'zh') setLang('zh');
-    else setLang('ko');
-  }, []);
+  const confettiRef = useRef<confetti.CreateTypes | null>(null);
 
   const t = uiTranslations[lang];
+
+  const changeLang = (next: Language) => {
+    setLang(next);
+    try {
+      localStorage.setItem(LANG_STORAGE_KEY, next);
+    } catch {
+      // 저장 실패는 무시 (이번 세션에만 적용)
+    }
+  };
 
   // 페이지 타이틀 및 HTML lang 속성 동적 설정
   useEffect(() => {
@@ -141,36 +80,47 @@ export default function App() {
   }, [step, currentIdx, resultCode, lang]);
 
   useEffect(() => {
-    if (confettiCanvasRef.current && !confettiInstance) {
-      const instance = confetti.create(confettiCanvasRef.current, {
+    if (confettiCanvasRef.current && !confettiRef.current) {
+      confettiRef.current = confetti.create(confettiCanvasRef.current, {
         resize: true,
         useWorker: true,
+        disableForReducedMotion: true,
       });
-      setConfettiInstance(() => instance);
     }
   }, []);
-
-  const selectedValue = step === 'test' ? answers[questions[currentIdx]?.id] : null;
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const res = params.get('result');
-    if (res && results[res]) {
-      setResultCode(res);
-      setStep('result');
-      const url = new URL(window.location.href);
-      url.searchParams.delete('result');
-      window.history.replaceState({}, '', url);
-    }
-  }, []);
+    if (sharedResult) clearResultParam();
+  }, [sharedResult]);
 
-  const handleAnswer = (score: number) => {
-    const newAnswers = { ...answers, [questions[currentIdx].id]: score };
+  // 모달: Esc로 닫기
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsModalOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isModalOpen]);
+
+  // 토스트 자동 닫기
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const currentQuestion = quizQuestions[currentIdx];
+  const selectedValue = step === 'test' ? answers[currentQuestion.id] : undefined;
+  const progress = ((currentIdx + 1) / quizQuestions.length) * 100;
+
+  const handleAnswer = (yes: boolean) => {
+    const newAnswers = { ...answers, [currentQuestion.id]: yes };
     setAnswers(newAnswers);
-    if (currentIdx < questions.length - 1) {
+    if (currentIdx < quizQuestions.length - 1) {
       setCurrentIdx(currentIdx + 1);
     } else {
-      calculateResult(newAnswers);
+      showResult(newAnswers);
     }
   };
 
@@ -179,37 +129,20 @@ export default function App() {
     else setStep('start');
   };
 
-  const calculateResult = (finalAnswers: Record<number, number>) => {
-    const indicatorScores: Record<string, number> = { E: 0, I: 0, S: 0, C: 0, D: 0, G: 0, A: 0, U: 0 };
-    questions.forEach(q => {
-      const score = finalAnswers[q.id];
-      if (score === 5) {
-        q.weights.forEach(w => { indicatorScores[w.indicator] += w.score; });
-      }
-    });
-
-    const res = [
-      (indicatorScores['E'] > indicatorScores['I']) ? 'E' : 'I',
-      (indicatorScores['S'] > indicatorScores['C']) ? 'S' : 'C',
-      (indicatorScores['D'] >= indicatorScores['G']) ? 'D' : 'G',
-      (indicatorScores['A'] > indicatorScores['U']) ? 'A' : 'U'
-    ].join('');
+  const showResult = (finalAnswers: Record<number, boolean>) => {
+    const res = calculateResultCode(questions, finalAnswers);
 
     setResultCode(res);
     setStep('result');
-    const url = new URL(window.location.href);
-    url.searchParams.delete('result');
-    window.history.replaceState({}, '', url);
+    clearResultParam();
 
-    if (confettiInstance) {
-      confettiInstance({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#00D2FF', '#1144DD', '#ffffff'],
-        zIndex: -1
-      });
-    }
+    confettiRef.current?.({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#00D2FF', '#1144DD', '#ffffff'],
+      zIndex: -1
+    });
 
     // Google Analytics 이벤트 전송
     if (typeof (window as any).gtag === 'function') {
@@ -224,34 +157,37 @@ export default function App() {
     setStep('start');
     setCurrentIdx(0);
     setAnswers({});
-    const url = new URL(window.location.href);
-    url.searchParams.delete('result');
-    window.history.pushState({}, '', url);
+    setQuizQuestions(shuffle(questions));
+    clearResultParam('push');
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    alert(t.result_copied);
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setToast(t.result_copied);
+    } catch {
+      setToast(t.result_copy_failed);
+    }
   };
 
   const currentResult = results[resultCode] || results['DEFAULT'];
+  const shareText = t.share_text.replaceAll('{code}', resultCode).replace('{nickname}', currentResult.nickname[lang]);
+  // 언어별 줄바꿈 규칙
+  const wordBreakClass = lang === 'ko' ? 'break-keep' : (lang === 'ja' ? 'break-all' : 'break-words');
 
   return (
     <div className="min-h-screen">
       <canvas ref={confettiCanvasRef} className="fixed inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }} />
-      <div className={`relative z-10 mx-auto min-h-screen flex flex-col items-center justify-center p-4 transition-all duration-500 ${step === 'result' ? 'max-w-4xl' : 'max-w-md'}`}>
+      <div className={`relative z-10 mx-auto min-h-screen flex flex-col items-center justify-center px-4 pt-20 pb-8 transition-all duration-500 ${step === 'result' ? 'max-w-4xl' : 'max-w-md'}`}>
 
         {/* 언어 선택기 (모든 화면 상시 노출) */}
         <div className="absolute top-8 flex gap-2 bg-white/5 p-1 rounded-full border border-white/5">
-          {[
-            { id: 'ko', label: '한국어' },
-            { id: 'en', label: 'English' },
-            { id: 'ja', label: '日本語' },
-            { id: 'zh', label: '中文' },
-          ].map((l) => (
+          {LANGUAGES.map((l) => (
             <button
               key={l.id}
-              onClick={() => setLang(l.id as Language)}
+              lang={l.id}
+              aria-pressed={lang === l.id}
+              onClick={() => changeLang(l.id)}
               className={`px-3 py-1 rounded-full text-[10px] transition-all ${lang === l.id ? 'bg-vrc-neon text-black' : 'text-gray-400 hover:text-white'}`}
             >
               {l.label}
@@ -282,24 +218,24 @@ export default function App() {
                   <span className="text-[10px] font-bold uppercase tracking-widest">{t.test_back}</span>
                 </button>
                 <div className="flex justify-between text-[10px] text-vrc-neon font-mono tracking-tighter gap-4">
-                  <span>{t.test_question} {currentIdx + 1}/{questions.length}</span>
-                  <span>{Math.round(((currentIdx + 1) / questions.length) * 100)}%</span>
+                  <span>{t.test_question} {currentIdx + 1}/{quizQuestions.length}</span>
+                  <span>{Math.round(progress)}%</span>
                 </div>
               </div>
               <div className="mb-8">
-                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                  <motion.div className="h-full bg-vrc-neon shadow-[0_0_10px_rgba(0,210,255,0.5)]" initial={{ width: 0 }} animate={{ width: `${((currentIdx + 1) / questions.length) * 100}%` }} />
+                <div className="h-1 bg-white/5 rounded-full overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
+                  <motion.div className="h-full bg-vrc-neon shadow-[0_0_10px_rgba(0,210,255,0.5)]" initial={{ width: 0 }} animate={{ width: `${progress}%` }} />
                 </div>
               </div>
-              <h2 className={`text-xl font-bold mb-12 min-h-[7rem] flex items-center justify-center leading-relaxed text-center ${lang === 'ko' ? 'break-keep' : (lang === 'ja' ? 'break-all' : 'break-words')}`}>
-                {questions[currentIdx].text[lang]}
+              <h2 className={`text-xl font-bold mb-12 min-h-[7rem] flex items-center justify-center leading-relaxed text-center ${wordBreakClass}`}>
+                {currentQuestion.text[lang]}
               </h2>
               <div className="flex gap-4">
-                <button onClick={() => handleAnswer(5)} className={`flex-1 p-8 rounded-3xl border-2 transition-all group flex flex-col items-center justify-center gap-2 ${selectedValue === 5 ? 'border-vrc-neon bg-vrc-neon/20' : 'border-white/10 bg-white/5 hover:border-vrc-neon'}`}>
+                <button onClick={() => handleAnswer(true)} aria-pressed={selectedValue === true} className={`flex-1 p-8 rounded-3xl border-2 transition-all group flex flex-col items-center justify-center gap-2 ${selectedValue === true ? 'border-vrc-neon bg-vrc-neon/20' : 'border-white/10 bg-white/5 hover:border-vrc-neon'}`}>
                   <div className="text-6xl font-black group-hover:scale-110 transition-all text-gray-700 group-hover:text-vrc-neon">O</div>
                   <div className="text-xs font-bold text-gray-600 group-hover:text-vrc-neon">{t.test_yes}</div>
                 </button>
-                <button onClick={() => handleAnswer(1)} className={`flex-1 p-8 rounded-3xl border-2 transition-all group flex flex-col items-center justify-center gap-2 ${selectedValue === 1 ? 'border-red-500 bg-red-500/20' : 'border-white/10 bg-white/5 hover:border-red-500'}`}>
+                <button onClick={() => handleAnswer(false)} aria-pressed={selectedValue === false} className={`flex-1 p-8 rounded-3xl border-2 transition-all group flex flex-col items-center justify-center gap-2 ${selectedValue === false ? 'border-red-500 bg-red-500/20' : 'border-white/10 bg-white/5 hover:border-red-500'}`}>
                   <div className="text-6xl font-black group-hover:scale-110 transition-all text-gray-700 group-hover:text-red-500">X</div>
                   <div className="text-xs font-bold text-gray-600 group-hover:text-red-500">{t.test_no}</div>
                 </button>
@@ -330,7 +266,7 @@ export default function App() {
                     {currentResult.nickname[lang]}
                   </div>
                   <h2 className="text-6xl font-black mb-8 text-white tracking-[0.25em] font-mono">{resultCode}</h2>
-                  <p className={`text-gray-300 leading-relaxed text-left bg-black/30 p-4 rounded-lg border border-white/5 text-sm ${lang === 'ko' ? 'break-keep' : (lang === 'ja' ? 'break-all' : 'break-words')}`}>
+                  <p className={`text-gray-300 leading-relaxed text-left bg-black/30 p-4 rounded-lg border border-white/5 text-sm ${wordBreakClass}`}>
                     {currentResult.description[lang]}
                   </p>
                 </div>
@@ -364,15 +300,11 @@ export default function App() {
                   </div>
                   <div className="mt-auto pt-4 border-t border-white/5">
                     <div className="grid grid-cols-2 gap-3 mb-6">
-                      <button onClick={() => {
-                        const shareText = t.share_text.replaceAll('{code}', resultCode).replace('{nickname}', currentResult.nickname[lang]);
-                        copyToClipboard(shareText);
-                      }} className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 p-3 rounded-lg text-sm border border-white/10 transition-colors">
+                      <button onClick={() => copyToClipboard(shareText)} className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 p-3 rounded-lg text-sm border border-white/10 transition-colors">
                         <Copy size={16} /> {t.result_copy_text}
                       </button>
                       <button onClick={() => {
-                        const shareText = t.share_text.replaceAll('{code}', resultCode).replace('{nickname}', currentResult.nickname[lang]);
-                        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, '_blank');
+                        window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, '_blank', 'noopener,noreferrer');
                       }} className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 p-3 rounded-lg text-sm border border-white/10 transition-colors">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -398,11 +330,14 @@ export default function App() {
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="indicator-guide-title"
                 className="vrc-panel w-full max-w-lg relative z-10 max-h-[90vh] flex flex-col"
               >
                 <div className="flex justify-between items-center mb-6 shrink-0">
-                  <h3 className="text-vrc-neon font-black text-xl tracking-tighter">{t.modal_title}</h3>
-                  <button onClick={() => setIsModalOpen(false)} className="p-2 text-gray-500 hover:text-white transition-colors"><X size={24} /></button>
+                  <h3 id="indicator-guide-title" className="text-vrc-neon font-black text-xl tracking-tighter">{t.modal_title}</h3>
+                  <button onClick={() => setIsModalOpen(false)} aria-label={t.modal_close} className="p-2 text-gray-500 hover:text-white transition-colors"><X size={24} /></button>
                 </div>
 
                 <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
@@ -425,7 +360,7 @@ export default function App() {
                                 <div className="w-10 h-10 rounded-xl bg-vrc-neon/10 flex items-center justify-center text-vrc-neon font-mono font-black text-xl shrink-0 border border-vrc-neon/20">{char}</div>
                                 <div>
                                   <div className="text-xs font-black text-vrc-neon uppercase tracking-wider mb-1">{info.name}</div>
-                                  <div className={`text-sm text-gray-300 leading-snug ${lang === 'ko' ? 'break-keep' : (lang === 'ja' ? 'break-all' : 'break-words')}`}>{info.description}</div>
+                                  <div className={`text-sm text-gray-300 leading-snug ${wordBreakClass}`}>{info.description}</div>
                                 </div>
                               </div>
                             );
@@ -437,6 +372,25 @@ export default function App() {
                 </div>
 
                 <button onClick={() => setIsModalOpen(false)} className="vrc-button w-full mt-8 shrink-0">{t.modal_close}</button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {toast && (
+            // 가운데 정렬은 바깥 래퍼가 맡는다 (motion이 transform을 덮어쓰기 때문)
+            <div className="fixed bottom-8 inset-x-0 z-[110] flex justify-center px-4 pointer-events-none">
+              <motion.div
+                key={toast}
+                role="status"
+                aria-live="polite"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="px-5 py-3 rounded-full bg-black/80 border border-vrc-neon/40 text-sm text-white text-center shadow-2xl backdrop-blur-xl"
+              >
+                {toast}
               </motion.div>
             </div>
           )}

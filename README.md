@@ -23,7 +23,7 @@ VRChat 문화권의 감각을 반영해 만든 놀이형 성향 테스트 서비
 - 결과 텍스트 복사
 - X(Twitter) 공유 문구 생성
 - 전체 지표 가이드 모달
-- 브라우저 언어 감지
+- 브라우저 언어 감지, 직접 고른 언어 기억
 - 결과 화면 컨페티 연출
 
 ## 기술 스택
@@ -43,7 +43,10 @@ src/
 ├─ data/
 │  ├─ indicators.ts    # 지표 설명, 언어 타입 정의
 │  ├─ questions.ts     # 질문 목록 및 가중치
-│  └─ results.ts       # 결과 코드별 설명 데이터
+│  ├─ results.ts       # 결과 코드별 설명 데이터
+│  └─ ui.ts            # UI 문구 번역
+├─ lib/
+│  └─ score.ts         # 결과 코드 계산, 공유 코드 검증, 셔플
 ├─ App.tsx             # 테스트 흐름 및 UI 전체
 ├─ main.tsx            # 앱 진입점
 public/
@@ -78,12 +81,14 @@ pnpm build
 ## 부가 스크립트
 
 ```bash
-node analyze_distribution.js
-pnpm exec tsx scripts/check-translations.js
+pnpm check:i18n
+pnpm analyze
 ```
 
-- `analyze_distribution.js`: 결과 분포 분석용 스크립트
-- `scripts/check-translations.js`: 번역 누락 여부 점검용 스크립트
+- `pnpm check:i18n` (`scripts/check-translations.js`): 번역 누락, 다른 언어 문자 혼입, UI 문구 키·placeholder 불일치 점검
+- `pnpm analyze` (`scripts/analyze-distribution.js`): 가능한 모든 응답 조합에 대한 결과 분포 분석
+
+두 스크립트 모두 앱이 쓰는 데이터(`src/data`)와 계산 함수(`src/lib/score.ts`)를 그대로 불러옵니다. TypeScript 파일을 직접 불러오므로 Node 22.18 이상이 필요합니다.
 
 ## 서비스 관점에서의 확장 포인트
 
