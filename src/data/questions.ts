@@ -1,4 +1,4 @@
-import { Indicator, Language } from "./indicators";
+import type { Indicator, Language } from "./indicators";
 
 export interface Weight {
   indicator: Indicator;
@@ -11,7 +11,8 @@ export interface Question {
   weights: Weight[];
 }
 
-export const questions: Question[] = [
+// id는 정의 순서 기준으로 고정된다. 출제 순서 섞기는 화면(App)에서 처리한다.
+export const questions: Question[] = ([
   {
     text: {
       ko: "나는 친구가 있어도 퍼블릭에 가곤 한다.",
@@ -192,5 +193,4 @@ export const questions: Question[] = [
     },
     weights: [{ indicator: 'U', score: 1.001 }, { indicator: 'G', score: 0.201 }]
   }
-].sort(() => Math.random() - 0.5)
-  .map((q, i) => ({ ...q, id: i }) as Question);
+] satisfies Omit<Question, 'id'>[]).map((q, i) => ({ ...q, id: i }));

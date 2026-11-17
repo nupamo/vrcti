@@ -1,4 +1,4 @@
-import { Language } from "./indicators";
+import type { Language } from "./indicators";
 
 export interface AvatarInfo {
   avatar: string;
